@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="基于20篇MAGI-2评测长文、16.5万字原文、150条实测视频的多维度深度解构：模型优缺点、测试场景、提示词工艺与内容生产工业。">
+<title>当模型学会「听话」——20篇 MAGI-2 评测的多维解构</title>
+<style>
+:root{
+  --bg:#0a0d12; --bg2:#0e131b; --panel:#141b26; --panel2:#18212e;
+  --gold:#d9b26a; --gold-dim:#9c7f47; --cyan:#69c2d4; --violet:#a994e0;
+  --red:#e0706c; --green:#7fc295; --text:#dde4ed; --muted:#8b97a8;
+  --line:rgba(255,255,255,.09); --line2:rgba(217,178,106,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  line-height:1.9; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+/* 背景光晕 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(900px 600px at 82% -8%,rgba(217,178,106,.10),transparent 60%),
+    radial-gradient(760px 620px at 6% 24%,rgba(105,194,212,.07),transparent 60%),
+    radial-gradient(900px 700px at 90% 92%,rgba(169,148,224,.06),transparent 60%);
+}
+/* 顶部进度条 */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:99;
+  background:linear-gradient(90deg,var(--gold),var(--cyan));box-shadow:0 0 12px rgba(217,178,106,.6)}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* ===== HERO ===== */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;position:relative;
+  padding:100px 0 60px;border-bottom:1px solid var(--line)}
+.kicker{display:inline-flex;align-items:center;gap:10px;color:var(--gold);font-size:13px;
+  letter-spacing:.28em;text-transform:uppercase;margin-bottom:34px;font-weight:600}
+.kicker::before{content:"";width:38px;height:1px;background:var(--gold)}
+.hero h1{font-family:Georgia,"Songti SC","STSong",serif;font-weight:600;
+  font-size:clamp(38px,6.4vw,76px);line-height:1.22;letter-spacing:.01em;color:#f3f5f8}
+.hero h1 em{font-style:normal;color:var(--gold);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:6px;
+  background:linear-gradient(90deg,rgba(217,178,106,.35),transparent);border-radius:50%}
+.hero .sub{margin-top:28px;font-size:clamp(15px,2vw,19px);color:var(--muted);max-width:720px;line-height:1.9}
+.hero .meta{margin-top:44px;display:flex;flex-wrap:wrap;gap:14px 30px;color:var(--muted);font-size:13px}
+.hero .meta span{display:inline-flex;align-items:center;gap:8px}
+.hero .meta b{color:var(--text);font-weight:600}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gold);display:inline-block}
+.scroll-hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);color:var(--muted);
+  font-size:11px;letter-spacing:.2em;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:.65}
+.scroll-hint i{width:1px;height:38px;background:linear-gradient(var(--muted),transparent);animation:sc 2s infinite}
+@keyframes sc{0%{opacity:.2;transform:scaleY(.4)}50%{opacity:1;transform:scaleY(1)}100%{opacity:.2;transform:scaleY(.4)}}
+
+/* 关键数字条 */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:52px}
+.stat{background:var(--bg2);padding:24px 18px;text-align:center}
+.stat .num{font-family:Georgia,serif;font-size:clamp(28px,4vw,42px);color:var(--gold);line-height:1}
+.stat .lab{font-size:12px;color:var(--muted);margin-top:10px;letter-spacing:.05em}
+
+/* ===== 布局：正文 + 侧栏目录 ===== */
+.layout{display:grid;grid-template-columns:1fr 210px;gap:56px;align-items:start;padding:70px 0}
+.toc{position:sticky;top:40px;font-size:13px}
+.toc h5{color:var(--muted);font-size:11px;letter-spacing:.2em;margin-bottom:16px;font-weight:600}
+.toc a{display:block;color:var(--muted);text-decoration:none;padding:7px 0 7px 14px;
+  border-left:1px solid var(--line);transition:.25s;line-height:1.5}
+.toc a:hover{color:var(--text);border-color:var(--gold-dim)}
+.toc a.active{color:var(--gold);border-left:2px solid var(--gold);background:linear-gradient(90deg,rgba(217,178,106,.07),transparent)}
+main{min-width:0}
+
+/* 章节 */
+section{margin-bottom:92px;scroll-margin-top:40px;opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+section.in{opacity:1;transform:none}
+.sec-no{font-family:Georgia,serif;color:var(--gold-dim);font-size:14px;letter-spacing:.18em;margin-bottom:8px}
+section h2{font-family:Georgia,"Songti SC",serif;font-size:clamp(26px,4vw,37px);color:#f0f3f7;
+  font-weight:600;line-height:1.4;margin-bottom:22px;letter-spacing:.01em}
+section h2 .hl{color:var(--gold)}
+h3{font-size:19px;color:#eef2f6;margin:34px 0 14px;font-weight:600;
+  padding-left:14px;border-left:3px solid var(--cyan)}
+p{margin:0 0 18px;color:#c6d0dc;font-size:15.5px}
+p strong{color:#f0f4f8;font-weight:600}
+a.inline{color:var(--cyan);text-decoration:none;border-bottom:1px dashed var(--cyan)}
+p .em{color:var(--gold);font-style:normal}
+
+/* 引言大段 */
+.lead{font-size:18px;line-height:2;color:#d8e0ea;border-left:2px solid var(--gold);padding-left:24px;margin-bottom:30px}
+
+/* 引用原文 */
+blockquote{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+  border-radius:0 10px 10px 0;padding:20px 24px;margin:24px 0;position:relative}
+blockquote p{margin:0;color:#d5dde7;font-size:15px}
+blockquote cite{display:block;margin-top:12px;color:var(--muted);font-size:12px;font-style:normal}
+blockquote cite::before{content:"—— "}
+
+/* 表格 */
+.tbl-wrap{overflow-x:auto;margin:24px 0;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+th{background:var(--panel2);color:var(--gold);text-align:left;padding:13px 16px;font-weight:600;
+  font-size:13px;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+td{padding:12px 16px;border-bottom:1px solid var(--line);color:#c8d2de;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+td b{color:#eef3f8}
+.tag{display:inline-block;padding:1px 9px;border-radius:20px;font-size:11px;margin-right:5px;white-space:nowrap}
+.tag.g{background:rgba(127,194,149,.14);color:var(--green);border:1px solid rgba(127,194,149,.3)}
+.tag.r{background:rgba(224,112,108,.13);color:var(--red);border:1px solid rgba(224,112,108,.3)}
+.tag.c{background:rgba(105,194,212,.13);color:var(--cyan);border:1px solid rgba(105,194,212,.3)}
+.tag.y{background:rgba(217,178,106,.13);color:var(--gold);border:1px solid rgba(217,178,106,.3)}
+
+/* 条形图 */
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 28px;margin:26px 0}
+.chart h4{font-size:14px;color:#e6edf5;margin-bottom:4px;font-weight:600}
+.chart .cap{font-size:12px;color:var(--muted);margin-bottom:22px}
+.bar-row{display:grid;grid-template-columns:132px 1fr 46px;align-items:center;gap:12px;margin-bottom:13px;font-size:13px}
+.bar-row .bl{color:#bcc7d4;text-align:right}
+.bar-track{height:9px;background:rgba(255,255,255,.05);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;width:0;transition:width 1.1s cubic-bezier(.2,.7,.3,1)}
+.bar-fill.gold{background:linear-gradient(90deg,var(--gold-dim),var(--gold))}
+.bar-fill.red{background:linear-gradient(90deg,#8c4845,var(--red))}
+.bar-fill.cyan{background:linear-gradient(90deg,#3d7c88,var(--cyan))}
+.bar-fill.violet{background:linear-gradient(90deg,#6a5c94,var(--violet))}
+.bar-row .bv{font-family:Georgia,serif;color:var(--muted);font-size:12px}
+
+/* 双栏对比 */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:24px 0}
+.cmp .col{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--panel)}
+.cmp .col.good{border-top:3px solid var(--green)}
+.cmp .col.bad{border-top:3px solid var(--red)}
+.cmp h4{font-size:15px;margin-bottom:14px;color:#eef3f8}
+.cmp ul{list-style:none}
+.cmp li{font-size:13.5px;color:#c3cdd9;padding:8px 0 8px 22px;position:relative;border-bottom:1px solid var(--line)}
+.cmp li:last-child{border-bottom:none}
+.cmp .good li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
+.cmp .bad li::before{content:"✕";position:absolute;left:0;color:var(--red);font-weight:700}
+
+/* 洞察卡片 */
+.insight{background:linear-gradient(135deg,rgba(217,178,106,.10),rgba(105,194,212,.05));
+  border:1px solid var(--line2);border-radius:14px;padding:28px 30px;margin:30px 0}
+.insight .lab{color:var(--gold);font-size:12px;letter-spacing:.2em;font-weight:600;margin-bottom:12px}
+.insight p{font-size:16px;color:#e2e8f0;margin:0;line-height:1.95}
+.insight p b{color:var(--gold)}
+
+/* 悖论框 */
+.paradox{display:grid;grid-template-columns:1fr 60px 1fr;align-items:center;gap:10px;margin:28px 0}
+.paradox .side{border:1px solid var(--line);border-radius:12px;padding:20px;background:var(--panel)}
+.paradox .side.a{border-left:3px solid var(--green)}
+.paradox .side.b{border-left:3px solid var(--red)}
+.paradox .side h5{font-size:14px;margin-bottom:10px;color:#eef3f8}
+.paradox .side p{font-size:13px;margin:0}
+.paradox .vs{text-align:center;font-family:Georgia,serif;color:var(--gold);font-size:15px}
+
+/* 编号步骤 */
+.steps{counter-reset:st;margin:22px 0}
+.step{position:relative;padding:0 0 22px 58px;counter-increment:st}
+.step::before{content:counter(st);position:absolute;left:0;top:-2px;width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--line2);color:var(--gold);font-family:Georgia,serif;font-size:17px;
+  display:flex;align-items:center;justify-content:center;background:var(--bg2)}
+.step h4{color:#eef3f8;font-size:16px;margin-bottom:6px}
+.step p{font-size:14px;margin:0;color:#bcc7d4}
+
+/* 文末清单 */
+.apx{font-size:12.5px}
+.apx td{padding:9px 12px}
+.apx td:nth-child(1){color:var(--gold);font-family:Georgia,serif;width:34px}
+.apx td:nth-child(2){color:#e2e8f0}
+.apx a{color:var(--cyan);text-decoration:none}
+.apx a:hover{text-decoration:underline}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:46px 0 60px;text-align:center;color:var(--muted);font-size:12.5px}
+footer .brand{font-family:Georgia,serif;color:var(--gold);font-size:15px;letter-spacing:.1em;margin-bottom:10px}
+
+@media(max-width:860px){
+  .layout{grid-template-columns:1fr;gap:28px;padding-top:40px}
+  .toc{display:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .cmp{grid-template-columns:1fr}
+  .paradox{grid-template-columns:1fr}
+  .paradox .vs{padding:6px}
+  .hero{padding-top:70px}
+  section{margin-bottom:70px}
+}
+@media print{
+  body{background:#fff;color:#111}
+  body::before,#progress,.toc,.scroll-hint{display:none}
+  section{opacity:1!important;transform:none!important;page-break-inside:avoid}
+  .hero{min-height:auto;padding:20px 0}
+  h1,h2,h3,p,blockquote p{color:#111}
+  :root{--gold:#8a6d2f;--cyan:#2a6b78;--muted:#555;--line:#ccc;--panel:#fafafa;--panel2:#f2f2f2}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">AI Video Research · 深度解构</div>
+    <h1>当模型学会<em>「听话」</em><br>一场关于 MAGI-2 的<br>集体评测实验</h1>
+    <p class="sub">20 篇评测长文、16.5 万字原文、150 条实测视频。本文不追问"模型好不好"这一浅层问题，而是把评测文章本身当作一手材料——解构一个模型如何被集体叙述，以及「听话」如何同时成为它最大的美德与最深的桎梏。</p>
+    <div class="meta">
+      <span><i class="dot"></i>研究样本 <b>20 篇</b> 微信评测原文</span>
+      <span><i class="dot"></i>语料规模 <b>164,713</b> 字</span>
+      <span><i class="dot"></i>分析维度 <b>5</b> 个</span>
+      <span><i class="dot"></i>研究日期 <b>2026.11</b></span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num">20</div><div class="lab">评测文章</div></div>
+      <div class="stat"><div class="num">16.5<span style="font-size:.5em">万</span></div><div class="lab">原文字数</div></div>
+      <div class="stat"><div class="num">150</div><div class="lab">实测视频</div></div>
+      <div class="stat"><div class="num">1/10</div><div class="lab">对标价格</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint"><span>SCROLL</span><i></i></div>
+</header>
+
+<!-- ============ BODY ============ -->
+<div class="wrap layout">
+  <nav class="toc">
+    <h5>目录 / CONTENTS</h5>
+    <a href="#s0">00 · 摘要</a>
+    <a href="#s1">01 · 缘起与方法</a>
+    <a href="#s2">02 · 能力画像</a>
+    <a href="#s3">03 · 测试方法论</a>
+    <a href="#s4">04 · 提示词工艺</a>
+    <a href="#s5">05 · 内容生产工业</a>
+    <a href="#s6">06 · 一个核心悖论</a>
+    <a href="#s7">07 · 创作启示</a>
+    <a href="#s8">附录 · 20 篇清单</a>
+  </nav>
+
+  <main>
+
+  <!-- 00 摘要 -->
+  <section id="s0" class="in">
+    <div class="sec-no">00 / ABSTRACT</div>
+    <h2>摘要：一部模型，<span class="hl">二十种讲述</span></h2>
+    <p class="lead">同一个模型，被二十位作者用二十种框架讲述，最终拼贴出一个公共形象。这项研究的真正对象，不是 MAGI-2 本身，而是「评测」这一内容品类如何建构一个模型的公共认知。</p>
+    <p>2026 年 11 月，视频生成模型 MAGI-2（Sand.ai 出品）以「原生 30 秒 1080P 音画同出、价格约为 Seedance 2.5 的十分之一、计划开源」的姿态闯入创作者视野。围绕它，中文 AI 创作圈在数日内产出了一批密集的评测文章。本研究收敛出其中 <strong>20 篇</strong>、合计 <strong>16.47 万字</strong>的原文语料，并关联到从这些文章中截出的 <strong>150 条</strong>实测视频，试图回答四个层层递进的问题：</p>
+    <div class="steps">
+      <div class="step"><h4>模型到底强在哪、弱在哪？</h4><p>从 20 篇的评价语句中还原一份有共识、也有分歧的能力画像。</p></div>
+      <div class="step"><h4>作者们是怎样测试的？</h4><p>测试场景的分布暴露了行业的「标准曲目」与默契。</p></div>
+      <div class="step"><h4>提示词该怎么写？</h4><p>从真实提示词样本中提炼出从「咒语」到「导演脚本」的工艺演进。</p></div>
+      <div class="step"><h4>评测文章本身是怎么写的？</h4><p>标题、开头、结尾与商业钩子，构成一套成熟的内容生产工业。</p></div>
+    </div>
+    <div class="insight">
+      <div class="lab">核心结论 / KEY FINDING</div>
+      <p>一句共识贯穿始终：<b>画质、指令遵循与长视频稳定性达到 Seedance 2.5 级别，价格只有 1/10 且计划开源；最大短板是音频，其次是速度与「过于听话」。</b>但更值得注意的是一个悖论——作者们把「听话」同时列为最大的优点和最重要的局限，这种分裂恰恰标记了 AI 视频从「抽卡玄学」走向「可控导演」的范式转折。</p>
+    </div>
+  </section>
+
+  <!-- 01 缘起与方法 -->
+  <section id="s1">
+    <div class="sec-no">01 / METHOD</div>
+    <h2>缘起与方法：<span class="hl">把评测当作民族志材料</span></h2>
+    <p>关于样本量需要坦诚说明：最初的需求来自「150 个视频来自哪些文章」的统计，按视频数据中的来源链接去重后得到 <strong>20 篇</strong>，而非流传的「25 篇」。这 20 篇构成了本研究可考的全部语料——其中既有一线创作者的个人实测，也有科技媒体的行业分析，还有机构号的深度拆解。样本的多样性，恰好构成了观察「集体叙述」的理想切面。</p>
+    <p>方法上采用<strong>「机器定位 + 人工精读」</strong>两段式：先用关键词在语料中定位评价句、场景词、提示词块与结构标记，再对高价值段落逐字精读。五维编码框架如下：</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:120px">维度</th><th>观察对象</th><th style="width:200px">产出</th></tr></thead>
+        <tbody>
+          <tr><td><b>能力评价</b></td><td>优点 / 缺点 / 保留意见语句</td><td>优缺点画像与提及频率</td></tr>
+          <tr><td><b>测试场景</b></td><td>案例名、题材、测试方法</td><td>场景分布与评测框架对比</td></tr>
+          <tr><td><b>提示词工艺</b></td><td>完整 PROMPT 块、写作心法</td><td>结构要素频次与好坏写法对照</td></tr>
+          <tr><td><b>文章写法</b></td><td>开头、结构、排版、结尾</td><td>写法套路与体裁特征</td></tr>
+          <tr><td><b>传播套路</b></td><td>标题词、CTA、人设</td><td>标题与转化模式统计</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>字数分布呈现明显的<strong>两极分化</strong>：10 篇在 5000 字以下（最短 1566 字），5 篇在 5000–10000 字，另有 5 篇超过 1 万字（最长 29783 字）。短篇多为快讯式实测，长篇则是带完整提示词与逐帧拆解的「教程型」文章——这个分布本身，就预示了内容品类的分层。</p>
+  </section>
+
+  <!-- 02 能力画像 -->
+  <section id="s2">
+    <div class="sec-no">02 / CAPABILITY</div>
+    <h2>能力画像：<span class="hl">便宜、听话、长，以及那个挥之不去的音频</span></h2>
+    <p>把 20 篇的评价语句汇总，「提及篇数」是一个粗糙但有效的共识温度计。它不衡量程度，却衡量<strong>关注度</strong>——而被反复提及的，往往就是一个模型的社会性标签。</p>
+
+    <div class="chart">
+      <h4>优点提及频率</h4>
+      <div class="cap">单位：提及该优点的文章篇数 / 共 20 篇</div>
+      <div class="bar-row"><span class="bl">价格 / 性价比</span><div class="bar-track"><div class="bar-fill gold" data-w="90"></div></div><span class="bv">≈18</span></div>
+      <div class="bar-row"><span class="bl">指令遵循 / 卡点</span><div class="bar-track"><div class="bar-fill gold" data-w="70"></div></div><span class="bv">≈14</span></div>
+      <div class="bar-row"><span class="bl">30 秒不崩 / 不串脸</span><div class="bar-track"><div class="bar-fill gold" data-w="60"></div></div><span class="bv">≈12</span></div>
+      <div class="bar-row"><span class="bl">画质 / 榜单第一</span><div class="bar-track"><div class="bar-fill gold" data-w="55"></div></div><span class="bv">≈11</span></div>
+      <div class="bar-row"><span class="bl">多模态参考</span><div class="bar-track"><div class="bar-fill gold" data-w="50"></div></div><span class="bv">≈10</span></div>
+      <div class="bar-row"><span class="bl">计划开源</span><div class="bar-track"><div class="bar-fill gold" data-w="40"></div></div><span class="bv">≈8</span></div>
+    </div>
+
+    <blockquote>
+      <p>MAGI-2 给我留下最深的印象就是<b>听话，而且便宜</b>……以前做 AI 视频，最让我肉疼的其实是抽卡。一条视频反复生成五六次，最后能用的可能就那么几秒。现在……1080P 视频低至 5 分钱一秒。</p>
+      <cite>《中国视频模型再出黑马》·「一些分享」</cite>
+    </blockquote>
+
+    <p>价格之所以成为最高频优点，在于它改变了创作经济学：<strong>试错成本被压到每秒约 0.5 元（活动价低至 5 分钱）</strong>，让群像戏、长镜头、多版本抽卡这些过去「算不过账」的需求首次跑通。多位作者用了同一个词形容这种心理变化——「舍得」：舍得把搁置的创意拿出来试，舍得为一条片子跑五六次。榜单数据则提供了客观背书：Artificial Analysis 图生视频（I2V）维度 Elo 分数登顶全球第一，对打 Seedance 2.5 能拿下约 39% 的对局。</p>
+
+    <div class="chart">
+      <h4>缺点 / 保留意见提及频率</h4>
+      <div class="cap">单位：提及该短板的文章篇数 / 共 20 篇</div>
+      <div class="bar-row"><span class="bl">音频是最大短板</span><div class="bar-track"><div class="bar-fill red" data-w="55"></div></div><span class="bv">≈11</span></div>
+      <div class="bar-row"><span class="bl">生成速度慢</span><div class="bar-track"><div class="bar-fill red" data-w="30"></div></div><span class="bv">≈6</span></div>
+      <div class="bar-row"><span class="bl">局部瑕疵（手/噪点/口型）</span><div class="bar-track"><div class="bar-fill red" data-w="25"></div></div><span class="bv">≈5</span></div>
+      <div class="bar-row"><span class="bl">过度听话 / 灵活性不足</span><div class="bar-track"><div class="bar-fill red" data-w="20"></div></div><span class="bv">≈4</span></div>
+      <div class="bar-row"><span class="bl">开源≠跑得动</span><div class="bar-track"><div class="bar-fill red" data-w="15"></div></div><span class="bv">≈3</span></div>
+    </div>
+
+    <blockquote>
+      <p>我们自己实测下来总结一下，大概就是<b>音频效果一般</b>，大概就是 Seedance 2.0 的音频水平……同时在画面质感上逊于 Seedance 2.5，但是在运镜表现、提示词遵循、物理表现等等上都非常强，而且<strong>废片率极低</strong>。</p>
+      <cite>《AI 视频模型也终于迎来了斩杀线》</cite>
+    </blockquote>
+
+    <p>音频是唯一一项被多位作者不约而同用上「最大瑕疵」「最最美中不足」来形容的短板：AI 味重、口型对不齐、音频参考还原度低，官方亦承认「有提升空间」。有趣的是，多位作者同时给出了务实的解法——<strong>把原生音频用于内部提案、分镜预览与日常短片，商业成片则导出到剪辑软件单独配乐补音效</strong>。这实际上承认了一个现实：目前的 AI 视频仍是「画面工具」而非「成片工具」。</p>
+    <p>其余短板多为「能力边界的注脚」：5–6 分钟一条的生成耗时劝退即时创作；极高速运动轨迹、中远景 2D 动画过平滑、复杂声场属于官方自列的局限；而「480B 即使开源，预览版也要 8 张 Hopper GPU」则提醒人们——MoE 省算力不省显存，开源更多是姿态而非普惠。</p>
+  </section>
+
+  <!-- 03 测试方法论 -->
+  <section id="s3">
+    <div class="sec-no">03 / TESTING</div>
+    <h2>测试方法论：<span class="hl">一套行业「标准曲目」</span></h2>
+    <p>如果只看标题，20 篇文章像 20 场各自为政的测试；但把测试场景抽出来统计，会看到惊人的一致性——它们高度集中在少数几个「必考题」上。</p>
+
+    <div class="chart">
+      <h4>测试题材覆盖度</h4>
+      <div class="cap">单位：涉及该题材的文章篇数 / 共 20 篇（关键词辅助统计，含交叉）</div>
+      <div class="bar-row"><span class="bl">多模态参考</span><div class="bar-track"><div class="bar-fill cyan" data-w="100"></div></div><span class="bv">20</span></div>
+      <div class="bar-row"><span class="bl">打斗 / 动作</span><div class="bar-track"><div class="bar-fill cyan" data-w="95"></div></div><span class="bv">19</span></div>
+      <div class="bar-row"><span class="bl">广告 / 商业</span><div class="bar-track"><div class="bar-fill cyan" data-w="95"></div></div><span class="bv">19</span></div>
+      <div class="bar-row"><span class="bl">写实 / 电影质感</span><div class="bar-track"><div class="bar-fill cyan" data-w="95"></div></div><span class="bv">19</span></div>
+      <div class="bar-row"><span class="bl">一镜到底 / 运镜</span><div class="bar-track"><div class="bar-fill cyan" data-w="90"></div></div><span class="bv">18</span></div>
+      <div class="bar-row"><span class="bl">国风 / 二次元</span><div class="bar-track"><div class="bar-fill cyan" data-w="90"></div></div><span class="bv">18</span></div>
+      <div class="bar-row"><span class="bl">逐秒卡点 / 时间轴</span><div class="bar-track"><div class="bar-fill cyan" data-w="90"></div></div><span class="bv">18</span></div>
+      <div class="bar-row"><span class="bl">群像 / 多人不串脸</span><div class="bar-track"><div class="bar-fill cyan" data-w="80"></div></div><span class="bv">16</span></div>
+      <div class="bar-row"><span class="bl">特殊能力（数独/文字）</span><div class="bar-track"><div class="bar-fill cyan" data-w="80"></div></div><span class="bv">16</span></div>
+    </div>
+
+    <p>这套「标准曲目」不是偶然：打斗与运镜考验模型对大幅动作的掌控，群像测试角色一致性，广告测试文字准确度与卖点分镜，卡点测试指令遵循的精度——它们共同指向新模型宣称的核心能力。<strong>测什么、不测什么，本身就是行业的默契。</strong>值得注意的缺席者是「长篇叙事的情感细腻度」与「真实人物纪录风格」，前者受限于 30 秒时长，后者受限于画质逊于 Seedance 2.5。</p>
+
+    <h3>评测框架：从「随手测」到「四段递进」</h3>
+    <p>作者们的测试组织方式，恰好构成一条从随意到系统的光谱：</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:80px">类型</th><th style="width:150px">代表</th><th>组织方式</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag c">盲测型</span></td><td>《实测 MAGI-2》</td><td>匿名盲测对比，让结果自己说话，强调客观性</td></tr>
+          <tr><td><span class="tag c">难度型</span></td><td>《一口气实测 6 条短片》</td><td>「专挑难的测」——6 条短片挑战动作、叙事、情感</td></tr>
+          <tr><td><span class="tag c">对标型</span></td><td>《正面硬刚 Seedance2.5》·《挑战行业天花板》</td><td>与 Seedance 2.5 正面对打，文戏 / 打戏分组比较</td></tr>
+          <tr><td><span class="tag c">文化型</span></td><td>《全场景适配》·《一口气跑十条短片》</td><td>国外题材 vs 国内烟火气，电影节质感 vs 二维动漫</td></tr>
+          <tr><td><span class="tag y">框架型</span></td><td>《AI 视频模型也终于迎来了斩杀线》</td><td><b>运镜 → 物理 → 风格化 → 进阶场景</b>四段递进，最系统</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <blockquote>
+      <p>一个视频生成模型的可玩性多高，我认为很大程度上取决于模型支持多大幅度的动作……拿到 MAGI-2 内测的一开始，我第一时间想的是先看看它的运镜表现如何。</p>
+      <cite>《AI 视频模型也终于迎来了斩杀线》·评测框架开篇</cite>
+    </blockquote>
+
+    <p>《AI 视频模型也终于迎来了斩杀线》的四段式尤其值得称道：它先测试<strong>运镜幅度</strong>（决定可玩性上限），再测<strong>物理规律</strong>（与 Seedance 2.5 正面对比），继而测<strong>风格化</strong>（剪纸风案例），最后测<strong>多模态进阶</strong>（参考视频改编）。在风格化测试中，作者记录下一个意味深长的细节：模型「克制住了」，没有在剪纸风格里塞进额外元素——「剪纸就是剪纸，除了剪纸几乎抠不出其他风格。而这种克制，恰恰也是它的优势」。这已经不是在测画质，而是在测模型的<strong>审美分寸</strong>。</p>
+  </section>
+
+  <!-- 04 提示词工艺 -->
+  <section id="s4">
+    <div class="sec-no">04 / PROMPT CRAFT</div>
+    <h2>提示词工艺：<span class="hl">从「咒语」到「导演脚本」</span></h2>
+    <p>如果说测试场景揭示「测什么」，提示词则揭示「怎么用」。20 篇中 11 篇附带了完整可复制的 PROMPT 块，长度从数百字到 2 万字不等。对真实提示词块做结构要素统计，一条清晰的工艺演进浮出水面。</p>
+
+    <div class="chart">
+      <h4>提示词结构要素出现频率</h4>
+      <div class="cap">单位：含该要素的文章篇数 / 共 20 篇</div>
+      <div class="bar-row"><span class="bl">声音 / 音效设计</span><div class="bar-track"><div class="bar-fill violet" data-w="95"></div></div><span class="bv">19</span></div>
+      <div class="bar-row"><span class="bl">时间轴 / 分镜</span><div class="bar-track"><div class="bar-fill violet" data-w="80"></div></div><span class="bv">16</span></div>
+      <div class="bar-row"><span class="bl">画风 / 视觉锚定</span><div class="bar-track"><div class="bar-fill violet" data-w="70"></div></div><span class="bv">14</span></div>
+      <div class="bar-row"><span class="bl">物理逻辑约束</span><div class="bar-track"><div class="bar-fill violet" data-w="70"></div></div><span class="bv">14</span></div>
+      <div class="bar-row"><span class="bl">完整可复制 PROMPT</span><div class="bar-track"><div class="bar-fill violet" data-w="55"></div></div><span class="bv">11</span></div>
+      <div class="bar-row"><span class="bl">角色身份锚定</span><div class="bar-track"><div class="bar-fill violet" data-w="30"></div></div><span class="bv">6</span></div>
+      <div class="bar-row"><span class="bl">负面提示词</span><div class="bar-track"><div class="bar-fill violet" data-w="15"></div></div><span class="bv">3</span></div>
+    </div>
+
+    <p>最反直觉的数据是：<strong>「角色身份锚定」只有 6 篇明确写出</strong>，远低于时间轴和画风。这并非作者忽略，而是因为角色一致性往往通过「参考图 + 一句锁定声明」隐式完成——《MAGI-2一手实测》的示范堪称范本：</p>
+
+    <blockquote>
+      <p>@图片1 女主人物身份参考。严格使用参考图中同一位成年女生的脸型、五官比例、肤色、年龄感、发际线、发色和发型。正面、侧面、回头、俯身、腾空及远景中始终是同一个人，<b>不重新设计面孔</b>。参考图只用于锁定人物身份……服装、装备、场景、光线和动作按照以下提示词重新生成。</p>
+      <cite>《MAGI-2一手实测》·逐镜拆解提示词</cite>
+    </blockquote>
+
+    <h3>心法之争：堆砌形容词 vs 交代确定性</h3>
+    <p>关于「什么才是好提示词」，语料中出现了针锋相对的两派。一派延续图像时代的咒语习惯，堆砌「极致电影感」「震撼大片」「8K 超清」等形容词；另一派则在实测后发现这类虚词在长视频里几乎无效。《视频圈爆炸了》一文给出了最凝练的反驳：</p>
+
+    <blockquote>
+      <p>写长脚本时<b>也不用堆砌"极致电影感、震撼大片"这类虚词</b>，优先把空间位置、时间节点和固定称谓交代清楚，出片会稳得多。</p>
+      <cite>《视频圈爆炸了》·「关于提示词脚本怎么写」</cite>
+    </blockquote>
+
+    <div class="cmp">
+      <div class="col good">
+        <h4>✓ 高确定性写法（被验证有效）</h4>
+        <ul>
+          <li>秒级时间轴切分：「0–6 秒饼干峡谷，6–11 秒果汁盒飞跃」</li>
+          <li>镜头物理参数：「28–35mm 自然广角」「缓入缓出」「连续视差」</li>
+          <li>角色身份锁定：「始终同一人，不重新设计面孔」</li>
+          <li>动作承接点：「04.00 秒在回头动作进行到一半时硬切」</li>
+          <li>负面排除：「禁止漂移成 3D 渲染」「避免拉长面部」</li>
+        </ul>
+      </div>
+      <div class="col bad">
+        <h4>✕ 低确定性写法（被证伪或翻车）</h4>
+        <ul>
+          <li>抽象形容词堆砌：「极致电影感、震撼大片」</li>
+          <li>许愿式短提示词：不写运镜却期待复杂镜头</li>
+          <li>拖沓冗长却无重点：模型会「堆慢镜头」敷衍</li>
+          <li>角色描述前后不一：导致中后段串脸</li>
+          <li>忽略声音规格：音画割裂、口型错位</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>《挑战行业天花板》一文概括为「有精细化控制需求的创作者可以尽情发挥」——他实测的提示词「人物什么时候出场、镜头怎么切、动作怎么做，甚至什么时候该露出什么表情，都写得清清楚楚」。当模型能稳定吃下 <strong>2 万字符</strong>的超长提示词，写提示词这件事的性质就变了：它不再是「施咒」，而是<strong>写分镜脚本</strong>。这也是为什么长篇教程型文章（超过 1 万字）会占据样本的四分之一——提示词本身已成为值得长篇讲解的知识资产。</p>
+
+    <div class="insight">
+      <div class="lab">工艺判断 / CRAFT INSIGHT</div>
+      <p>提示词的演进方向，是从「描述你想要的画面」转向「<b>约束模型不要偏离的画面</b>」。时间码、锚定、物理规则、负面排除——这些要素的共同点是<b>提高确定性、压缩自由度</b>。这与 MAGI-2「过于听话」的特质互为因果：正因为模型会严格执行，精确地写才变得有意义。</p>
+    </div>
+  </section>
+
+  <!-- 05 内容生产工业 -->
+  <section id="s5">
+    <div class="sec-no">05 / CONTENT INDUSTRY</div>
+    <h2>内容生产工业：<span class="hl">评测即种草，标题即战场</span></h2>
+    <p>把镜头从模型转向文章本身，会发现评测文章早已是一套成熟的工业产品：标题有公式，开头有钩子，结尾有转化，中间嵌入可复制的提示词作为「收藏诱饵」。它既是公共知识生产，也是一份精密的商业文案。</p>
+
+    <div class="chart">
+      <h4>标题套路分布</h4>
+      <div class="cap">单位：标题含该元素的文章篇数 / 共 20 篇</div>
+      <div class="bar-row"><span class="bl">价格锚点（1/10·五毛）</span><div class="bar-track"><div class="bar-fill gold" data-w="45"></div></div><span class="bv">9</span></div>
+      <div class="bar-row"><span class="bl">对标 Seedance</span><div class="bar-track"><div class="bar-fill gold" data-w="35"></div></div><span class="bv">7</span></div>
+      <div class="bar-row"><span class="bl">夯爆/卷疯/杀出</span><div class="bar-track"><div class="bar-fill gold" data-w="25"></div></div><span class="bv">5</span></div>
+      <div class="bar-row"><span class="bl">斩杀线</span><div class="bar-track"><div class="bar-fill gold" data-w="20"></div></div><span class="bv">4</span></div>
+      <div class="bar-row"><span class="bl">附提示词（收藏钩子）</span><div class="bar-track"><div class="bar-fill gold" data-w="20"></div></div><span class="bv">4</span></div>
+    </div>
+
+    <p><strong>「价格锚点」与「对标头部」几乎是所有标题的标配</strong>——用「1/10 的价格」「斩杀线」「DeepSeek 时刻」把技术事件翻译成人人都懂的商业冲突。「斩杀线」一词在 4 篇标题中出现，它把模型竞争叙述成一场你死我活的淘汰赛，天然带有传播张力。</p>
+
+    <div class="chart">
+      <h4>结尾转化动作（CTA）分布</h4>
+      <div class="cap">单位：结尾含该动作的文章篇数 / 共 20 篇</div>
+      <div class="bar-row"><span class="bl">引导去 LibTV 试用</span><div class="bar-track"><div class="bar-fill cyan" data-w="65"></div></div><span class="bv">13</span></div>
+      <div class="bar-row"><span class="bl">三连（赞/转/在看）</span><div class="bar-track"><div class="bar-fill cyan" data-w="30"></div></div><span class="bv">6</span></div>
+      <div class="bar-row"><span class="bl">星标 / 关注</span><div class="bar-track"><div class="bar-fill cyan" data-w="25"></div></div><span class="bv">5</span></div>
+      <div class="bar-row"><span class="bl">投稿 / 联系</span><div class="bar-track"><div class="bar-fill cyan" data-w="15"></div></div><span class="bv">3</span></div>
+    </div>
+
+    <p>13 篇在结尾引导读者去 LibTV 试用——这是 MAGI-2 的 C 端独家上线平台。于是形成一种有趣张力：<strong>评测的公共性与平台的排他性共存</strong>。文章以「客观实测」的面目出现，结尾却整齐地导向同一个商业入口。与此同时，「附完整提示词」既是给读者的福利，也是最有效的收藏与转发钩子——它把一篇文章从「读过即忘」变成「值得存下来以后照着做」。</p>
+
+    <h3>人设与排版：两种作者，两种体裁</h3>
+    <p>约 10 篇带明确的第一人称 IP（袋鼠帝、刘聪 NLP、苍何、甲木、冷逸、水的离子积、郭震……），另 10 篇为无自称的机构号或媒体号。前者往往以「大家好，我是 XX」开场，用个人体验建立信任，文末三连；后者以「作者｜XX / 编辑｜XX」标注，语言更中性，偏向行业分析。</p>
+    <p>排版上，长教程型文章已经演化出一套固定的「杂志式」结构：封面图 + 案例编号（CASE 01 / 实测一）+ 视频嵌入 + 提示词折叠块（「上下滑动 ↕」）+ 参数标签（TC 00:00:30 / LUT · REC709 / 1080P）。《实测 MAGI-2》甚至给每个案例配上电影级的字段标签，把一篇评测做成了<strong>可翻阅的作品集</strong>。这种版式不只是美观——它把「我能做出这样的东西」的 aspirational 价值直接可视化。</p>
+
+    <div class="insight">
+      <div class="lab">体裁判断 / GENRE INSIGHT</div>
+      <p>评测文章已分化为两种体裁：<b>快讯型</b>（&lt;5000 字，抢时效，标题定胜负）与<b>教程型</b>（&gt;1 万字，卖深度，提示词即资产）。前者制造「我知道了」的扩散，后者制造「我要收藏」的沉淀。一个模型同时需要这两种体裁，才能完成从「话题」到「工具」的社会化过程。</p>
+    </div>
+  </section>
+
+  <!-- 06 核心悖论 -->
+  <section id="s6">
+    <div class="sec-no">06 / THE PARADOX</div>
+    <h2>一个核心悖论：<span class="hl">「听话」的两张面孔</span></h2>
+    <p>如果说这项研究只能留下一个概念，那一定是「听话」的分裂。在 20 篇语料里，「听话」既被当作 MAGI-2 最动人的优点，又被指认为它最隐蔽的局限。同一特质，两种截然相反的价值判断——这不是作者的矛盾，而是范式转折期的症状。</p>
+
+    <div class="paradox">
+      <div class="side a">
+        <h5>✓ 作为美德的「听话」</h5>
+        <p>精准遵循长提示词、废片率极低、一镜到底不跑偏、风格化「克制住」不擅自加戏、逐秒卡点指哪打哪。它把创作从「抽卡碰运气」变成「所想即所得」，显著降低了专业创作的门槛与成本。</p>
+      </div>
+      <div class="vs">VS</div>
+      <div class="side b">
+        <h5>✕ 作为局限的「听话」</h5>
+        <p>「听话与自由度天生对抗」。提示词拖沓，它就堆慢镜头敷衍；提示词是许愿式短句，它就不做复杂运镜。模型缺乏「灵光一现」的主动创意，创作门槛并未消失，只是从「改画面」转移到了「写脚本」。</p>
+      </div>
+    </div>
+
+    <blockquote>
+      <p>虽然有些地方以当前的模型能力是完全可以做到更加精致的，但 MAGI-2 克制住了。而这种克制，恰恰也是它的优势……在这点上，MAGI-2 确实是个<b>很听话的模型</b>。</p>
+      <cite>《AI 视频模型也终于迎来了斩杀线》·风格化测试</cite>
+    </blockquote>
+
+    <p>这一悖论的深层含义是：<strong>当模型足够听话，提示词的质量就成了创作质量的天花板。</strong>「文笔」不再只是文学修辞，而变成一项可量化的工程能力——能否写清楚空间位置、时间节点、物理约束与声音规格，直接决定成片水准。这也是为什么教程型长文会大量涌现：市场真正稀缺的，不是会按按钮的人，而是会写「导演脚本」的人。</p>
+    <p>由此可以做出一个趋势判断：AI 视频的竞争重心，正在从<strong>「画质竞赛」</strong>（谁的画面更逼真）转向<strong>「可控性 + 成本竞赛」</strong>（谁更听话、谁更便宜、谁更能精确兑现创作者的意图）。MAGI-2 的巨大声量，本质上不是因为它画得最好——多篇承认其画质逊于 Seedance 2.5——而是因为它第一次让「精确控制」变得人人可负担。所谓「视频模型的 DeepSeek 时刻」，指的正是这种「高性能平权」。</p>
+  </section>
+
+  <!-- 07 创作启示 -->
+  <section id="s7">
+    <div class="sec-no">07 / TAKEAWAYS</div>
+    <h2>创作启示：<span class="hl">给要用它的人的五条建议</span></h2>
+    <div class="steps">
+      <div class="step"><h4>把提示词当分镜脚本写，而不是当咒语念</h4><p>用秒级时间轴组织镜头，明确每个切点的动作承接状态；写清空间位置、人物称谓、运镜参数。确定性比华丽更重要。</p></div>
+      <div class="step"><h4>用「具体约束」替代「抽象形容词」</h4><p>删掉「震撼大片」「极致电影感」，换成「28–35mm 广角、缓入缓出、近处视差大远处小、全程一镜到底」。前者是愿望，后者是指令。</p></div>
+      <div class="step"><h4>角色一致性靠「显式锚定」而非「期望」</h4><p>用参考图加一句锁定声明（同一面孔、不重新设计），并在全片提示词中维持固定称谓，避免中后段串脸。</p></div>
+      <div class="step"><h4>把音频当作独立工序</h4><p>原生音频适合提案、预览与日常短片；追求商业成片质感时，导出画面到剪辑软件单独配乐补音效——这是当前最务实的音画方案。</p></div>
+      <div class="step"><h4>别被「听话」惯坏，主动留出创意冗余</h4><p>模型不会替你做审美判断。在精确约束之外，有意识地加入风格锚定与情绪基调，否则「过于听话」会产出技术上正确、审美上平庸的片子。</p></div>
+    </div>
+    <div class="insight">
+      <div class="lab">最后一句 / CLOSING</div>
+      <p>这 20 篇文章最终讲述的，其实不只是 MAGI-2，而是所有 AI 创作工具正在经历的同一个转折：<b>当执行力不再稀缺，想象力与精确表达的能力，就成了新的分水岭。</b>模型学会了听话，接下来轮到人学会「把话说清楚」。</p>
+    </div>
+  </section>
+
+  <!-- 附录 -->
+  <section id="s8">
+    <div class="sec-no">APPENDIX / SOURCES</div>
+    <h2>附录：<span class="hl">20 篇语料来源</span></h2>
+    <p class="cap">按目录出现顺序排列，标题可直达原文。短视频数指从该文截出的实测视频条数。</p>
+    <div class="tbl-wrap">
+      <table class="apx">
+        <thead><tr><th>#</th><th>文章标题</th><th style="width:70px">视频</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td><a href="https://mp.weixin.qq.com/s/UlIMEZFUMa_emt3Mvx_6BQ" target="_blank" rel="noopener">实测 MAGI-2，追平 Seedance 2.5 ！</a></td><td>8</td></tr>
+          <tr><td>02</td><td><a href="https://mp.weixin.qq.com/s/PqVcHdH2pLLpLFPfMeVY-Q" target="_blank" rel="noopener">AI视频终于迎来DeepSeek时刻！MAGI-2夯爆了！（附10个神仙玩法）</a></td><td>10</td></tr>
+          <tr><td>03</td><td><a href="https://mp.weixin.qq.com/s/JkZM9s6tC_Wz5MKeYcccxw" target="_blank" rel="noopener">AI视频模型也终于迎来了斩杀线，它的名字，叫MAGI-2。</a></td><td>10</td></tr>
+          <tr><td>04</td><td><a href="https://mp.weixin.qq.com/s?__biz=MjM5MjAyNDUyMA==&mid=2651118407&idx=1&sn=fbf1d4e6828158aa19b369a19933bfc5" target="_blank" rel="noopener">Seedance 2.5 级别，价格只要 1/10，我们实测了计划开源的 MAGI-2</a></td><td>8</td></tr>
+          <tr><td>05</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzI3NTkyMjA4NA==&mid=2247526411&idx=1&sn=4f320e7296e417d4c25b7c1517629243" target="_blank" rel="noopener">视频生成终于又有新模型，一口气实测了 6 条 AI 短片，性价比真的香！</a></td><td>6</td></tr>
+          <tr><td>06</td><td><a href="https://mp.weixin.qq.com/s?__biz=Mzk0NzQzOTczOA==&mid=2247529825&idx=1&sn=5e45aeef10a9a5bc9d9a47ad623204cc" target="_blank" rel="noopener">AI 视频斩杀线来了！国产 MAGI-2 逼近 Seedance 2.5，价格不到 1/6</a></td><td>5</td></tr>
+          <tr><td>07</td><td><a href="https://mp.weixin.qq.com/s?__biz=MTMwNDMwODQ0MQ==&mid=2653117405&idx=1&sn=4636e0f3c33ab7e3f4a623cf79adc1cc" target="_blank" rel="noopener">成本低九成、开源权重：MAGI-2 带动视频模型进入大掀桌时代</a></td><td>4</td></tr>
+          <tr><td>08</td><td><a href="https://mp.weixin.qq.com/s?__biz=Mzg5MTU1NTE1OQ==&mid=2247505122&idx=1&sn=816365c13f6917ff665174c391097acb" target="_blank" rel="noopener">又一个国产开源视频模型站起来了？正面硬刚Seedance2.5，实测夯（附完整提示词）</a></td><td>4</td></tr>
+          <tr><td>09</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzY5ODQwMTkxNA==&mid=2247517819&idx=1&sn=4b508fff725c0374a1489114349eb216" target="_blank" rel="noopener">竞技榜第一，价格只有 Seedance 的 1/10，MAGI-2 发布：视频赛道迎来「DS 4.1 时刻」</a></td><td>5</td></tr>
+          <tr><td>10</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzYzMjk0NTU5Mw==&mid=2247509582&idx=1&sn=505fcd97864d7101dd67274897085abb" target="_blank" rel="noopener">视频模型新黑马MAGI-2，高清视频5毛1秒，杀进全球第一梯队</a></td><td>8</td></tr>
+          <tr><td>11</td><td><a href="https://mp.weixin.qq.com/s?__biz=Mzg2ODA3NjA1MA==&mid=2247495281&idx=1&sn=936cca691e3008fa06d82b6ec05235ea" target="_blank" rel="noopener">上手实测480B参数开源！国产视频模型MAGI-2一句话出30秒1080P有声大片</a></td><td>6</td></tr>
+          <tr><td>12</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzU4NTE1Mjg4MA==&mid=2247500898&idx=1&sn=0ee0dbdfa3f25f01d6c4b772a5113409" target="_blank" rel="noopener">AI 视频新斩杀线来了，这下给我用爽了（附实测及提示词）</a></td><td>9</td></tr>
+          <tr><td>13</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzI5NTA0NDExMg==&mid=2654417137&idx=1&sn=917b4ae07b6babde397e0974f1719129" target="_blank" rel="noopener">视频圈爆炸了！LibTV独家首发MAGI-2，媲美Seedance 2.5，1080P价格仅十分之一！</a></td><td>10</td></tr>
+          <tr><td>14</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzkxNDczMjA4Ng==&mid=2247516204&idx=1&sn=2b4015dbc686ea1d445ae5afb7f98015" target="_blank" rel="noopener">中国视频模型再出黑马，MAGI-2 用十分之一的价格挑战行业天花板</a></td><td>7</td></tr>
+          <tr><td>15</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzkxNjY0MzM1MA==&mid=2247498123&idx=1&sn=f5becdc5943b08c38a39d3b79cd036bb" target="_blank" rel="noopener">刚刚，AI 视频圈又杀出一匹黑马，TVC、短剧、动画全场景适配，有点东西！</a></td><td>9</td></tr>
+          <tr><td>16</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzIwNzY1MzU3Mg==&mid=2247517325&idx=1&sn=3b4fef605219bbfffa06dc79632a9f4f" target="_blank" rel="noopener">夯爆了！30秒音画直出+1080P+超强精控，开源视频模型横推高端局！</a></td><td>9</td></tr>
+          <tr><td>17</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzIwMTU5OTQ1Nw==&mid=2653730924&idx=1&sn=bafbbe85f83996268d0b33805158643d" target="_blank" rel="noopener">视频模型斩杀线来了！MAGI-2一手实测，价格低至五分钱一秒</a></td><td>9</td></tr>
+          <tr><td>18</td><td><a href="https://mp.weixin.qq.com/s?__biz=MzA5NDc1NzQ4MA==&mid=2654710780&idx=1&sn=fa2162df61d6c4a5319cf5a1d2403882" target="_blank" rel="noopener">价格只要大厂十分之一，国产新模型把 AI 视频卷疯了。</a></td><td>8</td></tr>
+          <tr><td>19</td><td><a href="https://mp.weixin.qq.com/s?__biz=Mzg4NTg4ODA4Ng==&mid=2247491976&idx=1&sn=67a2503967aae1de11d9e52d522135af" target="_blank" rel="noopener">登顶全球图生视频第一，30秒1080P只要360积分？实测LibTV首发MAGI-2，一口气跑了十条短片</a></td><td>9</td></tr>
+          <tr><td>20</td><td><a href="https://mp.weixin.qq.com/s?__biz=Mzk0MjYxNTcyNw==&mid=2247488469&idx=1&sn=b5bc34329986c34b3f644c0ee94f4d86" target="_blank" rel="noopener">中国小团队做的视频模型赢过seedance？我来测测是真是假</a></td><td>6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap" style="margin-top:14px">注：合计 150 条视频。本文正文中的引述以文章标题简称标注，与本表按视频来源聚合的排序无关，可通过标题一一对应。研究基于原文语料，所有评价性引述均标注出处，供对照核查。</p>
+  </section>
+
+  <footer>
+    <div class="brand">MAGI-2 · 集体评测观察</div>
+    <div>基于 20 篇微信原文 / 16.5 万字语料 / 150 条实测视频 · 五维编码与人工精读</div>
+    <div style="margin-top:8px;opacity:.6">研究生成于 2026 年 11 月 · 仅供创作研究参考</div>
+  </footer>
+
+  </main>
+</div>
+
+<script>
+// 滚动进度条
+const bar=document.getElementById('progress');
+function onScroll(){
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  const p=h>0?window.scrollY/h:0;
+  bar.style.width=(p*100)+'%';
+}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+
+// 章节淡入 + 图表动画
+const secs=[...document.querySelectorAll('section')];
+const io=new IntersectionObserver((es)=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      e.target.querySelectorAll('.bar-fill').forEach(b=>{
+        if(!b.dataset.done){b.style.width=b.dataset.w+'%';b.dataset.done='1';}
+      });
+      io.unobserve(e.target);
+    }
+  });
+},{threshold:.12});
+secs.forEach(s=>io.observe(s));
+// 首屏图表直接填充
+document.querySelectorAll('#s0 .bar-fill').forEach(b=>b.style.width=b.dataset.w+'%');
+
+// 目录高亮
+const links=[...document.querySelectorAll('.toc a')];
+const obs=new IntersectionObserver((es)=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id));
+    }
+  });
+},{rootMargin:'-30% 0px -60% 0px'});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
